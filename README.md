@@ -1,159 +1,129 @@
+# NJServerLogDown — one-click download of the WebIQ `connect.log`
 
-# Node js Server - Connect.log file Download for WebIQ
+<!-- Demo GIF: record ~10 seconds (browser hits /download-log, connect.zip lands in Downloads) and add it here -->
 
-## Overview
+![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
-NJServerLogDown is a Node.js server application designed to allow users to download log files from a server. The server is built using Express.js and supports CORS for cross-origin requests. The log file is zipped before being sent to the client.
+WebIQ runtimes usually live on headless Linux boxes or locked-down industrial
+PCs. When support asks for the `connect.log`, nobody wants to walk an operator
+through SSH and `scp` on the plant floor.
 
-## Features
+**NJServerLogDown** is a tiny Node.js server that solves this: it zips the
+WebIQ Connect log and serves it as a one-click browser download — or as a
+download button inside your WebIQ application itself.
 
-- Download log files from the server
-- Simple setup and usage
-- Can be packaged as a standalone executable
-- Automatically zips log files before download
+## What it does
 
-## Download and Run
+- Exposes one endpoint: `GET /download-log`
+- Finds the WebIQ `connect.log` automatically:
+  - **Windows:** `%PROGRAMDATA%\WebIQ\connect.log`
+  - **Linux:** `/var/lib/webiq/connect.log`
+- Zips it (max compression) and streams it back as `connect.zip`
+- Returns `404` with a clear message if the log file isn't there
+- Ships as a standalone executable — no Node.js needed on the target machine
 
-You can simply download and run the `njserverlogdown-win.exe`, `njserverlogdown-linux` from dist folder OR you can modify the code and make your own executable server.
+## Quick start
 
-## WebIQ Applications
+### Option A — download the executable (recommended)
 
-For the WebIQ applications, you need to download and install the `lib-jquery3` from [Smart HMI](https://www.smart-hmi.com). You need to log in and download it from the User area and install the package in your application to use the WebIQ sample code.
-
-## Project Structure
-
-```
-NJServerLogDown/
-├── node_modules/
-├── package.json
-├── server.js
-```
-
-## Setup
-
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) installed
-- [npm](https://www.npmjs.com/) installed
-- [pkg](https://github.com/vercel/pkg) installed globally
-
-### Installation
-
-1. Clone the repository:
+1. Grab the file for your platform from the **[Releases page](https://github.com/DanteDevOps/NJServerLogDown/releases)**.
+2. Run it:
 
    ```bash
-   git clone https://github.com/DanteDevOps/NJServerLogDown.git
-   cd NJServerLogDown
+   # Linux
+   chmod +x njserverlogdown-linux
+   ./njserverlogdown-linux
+
+   # Windows
+   njserverlogdown-win.exe
    ```
 
-2. Install the dependencies:
+3. The server starts on `http://0.0.0.0:3000`.
 
-   ```bash
-   npm install
-   ```
+### Option B — run from source
+
+```bash
+git clone https://github.com/DanteDevOps/NJServerLogDown.git
+cd NJServerLogDown
+npm install
+npm start
+```
 
 ## Usage
 
-1. Start the server:
+From any machine on the same network:
 
-   ```bash
-   node server.js
-   ```
+```
+http://<SERVER_IP>:3000/download-log
+```
 
-   The server will start running at `http://0.0.0.0:3000`.
+The browser downloads `connect.zip` containing the current `connect.log`.
 
-2. To download the log file, make a GET request to:
+## Use it inside a WebIQ application
 
-   ```
-   http://<YOUR_SERVER_IP>:3000/download-log
-   ```
+You can put a "Download log" button directly into your WebIQ HMI:
 
-   Replace `<YOUR_SERVER_IP>` with the actual IP address of the server. This will download the log file as a zipped archive named `connect.zip`.  ```
+1. Log in to the [Smart HMI](https://www.smart-hmi.com) user area and download
+   the free `lib-jquery3` package.
+2. Install the package in your WebIQ application.
+3. Use the script in [`WebIQ_Sample_script`](./WebIQ_Sample_script) as the
+   button's action.
 
-## Creating an Executable
+## Security notes — read before deploying
 
-You can create a standalone executable for the server using `pkg`.
+This tool is built for **trusted engineering and commissioning networks**. By design:
 
-1. Ensure `pkg` is installed globally:
+- There is **no authentication**. Anyone who can reach port 3000 can download the log.
+- **CORS is fully open**, so a WebIQ app served from another port can call the endpoint. Restrict the origin in `server.js` if your setup allows it.
+- The server listens on **all network interfaces** (`0.0.0.0`).
+- Log files can contain internal hostnames, IP addresses, and tag names. **Treat the download as sensitive data.**
 
-   ```bash
-   npm install -g pkg
-   ```
+Do not expose this service to the open internet or route it through a firewall
+port-forward. If the machine runs `ufw`, open only what you need on the local
+network:
 
-2. Create the executable:
+```bash
+sudo ufw allow 3000/tcp    # this server
+sudo ufw allow 10123/tcp   # WebIQ Runtime
+sudo ufw allow 10124/tcp   # WebIQ Manager
+sudo ufw enable
+```
 
-   ```bash
-   pkg .
-   ```
+## Build your own executable
 
-   This will generate an executable for your platform in the project directory.
+The project uses [`pkg`](https://github.com/vercel/pkg) to build standalone binaries:
 
-3. To specify a target platform, use the `--targets` option. For example, to create a Windows executable:
+```bash
+npm install -g pkg
+pkg .                              # build for your current platform
+pkg . --targets node18-win-x64     # Windows
+pkg . --targets node18-linux-x64   # Linux
+```
 
-   ```bash
-   pkg . --targets node14-win-x64
-   ```
-4. To create a Linux executable, use:
+> Note: `pkg` is no longer actively maintained. It still works fine for this
+> project; if it ever breaks, Node.js now has a built-in single-executable
+> feature that can replace it.
 
-   ```bash
-   pkg . --targets node14-linux-x64
-   ```
-   
-## Running on Linux
+## Project structure
 
-1. Transfer the generated Linux executable to your Linux machine.
-
-2. Set executable permissions:
-
-   ```bash
-   chmod +x dist/njserverlogdown-linux
-   ```
-
-3. Run the executable:
-
-   ```bash
-   ./dist/njserverlogdown-linux
-   ```
-
-   The server will start running at `http://0.0.0.0:3000`.
-
-## Configuring Firewall and Network Settings
-
-To ensure that the server can be accessed from other machines on the network, you need to configure the firewall and network settings on your Ubuntu server.
-
-1. **Allow Port 3000 Through the Firewall:**
-
-   ```bash
-   sudo ufw allow 3000/tcp  //for Node js Server
-   sudo ufw allow 10123/tcp  //for WebIQ Runtime
-   sudo ufw allow 10124/tcp  //for WebIQ manager
-   sudo ufw enable
-   ```
-
-2. **Verify Server Accessibility:**
-
-   - From your client machine, try to access the server directly using a browser or a tool like `curl`:
-
-     ```bash
-     curl http://<YOUR_SERVER_IP>:3000/download-log
-     ```
-
-   - If the server is reachable, you should see the response or the file being downloaded.
+```
+NJServerLogDown/
+├── server.js             # the whole server (~45 lines)
+├── WebIQ_Sample_script   # button code for your WebIQ app
+├── package.json
+└── Dockerfile
+```
 
 ## Contributing
 
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
+Issues and pull requests are welcome — especially reports from other WebIQ
+deployment setups.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](./LICENSE).
 
-06061307,kHK4d0RovYefzr-ns3d1Fw,2024-10-10T11:28:13.282274+00:00
+---
 
-06061316,N5XhdbvONi8yljHZzvLs_g,2024-10-10T11:28:13.448957+00:00
-
-06061315,yUFrKY3DyPWnVyh3d5cWZg,2024-10-10T11:28:13.563828+00:00
-
-06061313,-z68Piprn-s8MN3ZtIkmJQ,2024-10-10T11:28:13.674777+00:00
-
-```
+Built by **[Dante Vetony](https://dantevetony.com)** — solution engineer working
+where OT meets AI. More tools and writing on the site.
