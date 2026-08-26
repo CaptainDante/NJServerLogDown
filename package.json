@@ -20,9 +20,9 @@
       "C:/ProgramData/WebIQ/connect.log"
     ],
     "targets": [
-      "node14-win-x64",
-      "node14-linux-x64",
-      "node14-win-x86"
+      "node18-win-x64",
+      "node18-linux-x64",
+      "node18-win-x86"
     ],
     "outputPath": "./dist"
   },

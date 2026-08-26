@@ -1,15 +1,15 @@
-# NJServerLogDown — one-click download of the WebIQ `connect.log`
+# NJServerLogDown: one-click download of the WebIQ `connect.log`
 
 <!-- Demo GIF: record ~10 seconds (browser hits /download-log, connect.zip lands in Downloads) and add it here -->
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
 
-WebIQ runtimes usually live on headless Linux boxes or locked-down industrial
-PCs. When support asks for the `connect.log`, nobody wants to walk an operator
-through SSH and `scp` on the plant floor.
+[WebIQ](https://www.smart-hmi.com) runtimes usually live on headless Linux
+boxes or locked-down industrial PCs. When support asks for the `connect.log`,
+nobody wants to walk an operator through SSH and `scp` on the plant floor.
 
 **NJServerLogDown** is a tiny Node.js server that solves this: it zips the
-WebIQ Connect log and serves it as a one-click browser download — or as a
+WebIQ Connect log and serves it as a one-click browser download, or as a
 download button inside your WebIQ application itself.
 
 ## What it does
@@ -20,11 +20,11 @@ download button inside your WebIQ application itself.
   - **Linux:** `/var/lib/webiq/connect.log`
 - Zips it (max compression) and streams it back as `connect.zip`
 - Returns `404` with a clear message if the log file isn't there
-- Ships as a standalone executable — no Node.js needed on the target machine
+- Ships as a standalone executable: no Node.js needed on the target machine
 
 ## Quick start
 
-### Option A — download the executable (recommended)
+### Option A: download the executable (recommended)
 
 1. Grab the file for your platform from the **[Releases page](https://github.com/DanteDevOps/NJServerLogDown/releases)**.
 2. Run it:
@@ -40,7 +40,7 @@ download button inside your WebIQ application itself.
 
 3. The server starts on `http://0.0.0.0:3000`.
 
-### Option B — run from source
+### Option B: run from source
 
 ```bash
 git clone https://github.com/DanteDevOps/NJServerLogDown.git
@@ -69,7 +69,7 @@ You can put a "Download log" button directly into your WebIQ HMI:
 3. Use the script in [`WebIQ_Sample_script`](./WebIQ_Sample_script) as the
    button's action.
 
-## Security notes — read before deploying
+## Security notes: read before deploying
 
 This tool is built for **trusted engineering and commissioning networks**. By design:
 
@@ -116,14 +116,14 @@ NJServerLogDown/
 
 ## Contributing
 
-Issues and pull requests are welcome — especially reports from other WebIQ
+Issues and pull requests are welcome, especially reports from other WebIQ
 deployment setups.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT. See [LICENSE](./LICENSE).
 
 ---
 
-Built by **[Dante Vetony](https://dantevetony.com)** — solution engineer working
+Built by **[Dante Vetony](https://dantevetony.com)**, solution engineer working
 where OT meets AI. More tools and writing on the site.
