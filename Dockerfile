@@ -1,20 +1,27 @@
-# Use the official Node.js 16 image for ARM64
-FROM node:16-alpine
+# Build this target in CI with: docker build --target verify .
+FROM node:24-alpine AS verify
 
-# Set the working directory inside the container
 WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY server.js ./
+COPY scripts ./scripts
+COPY test ./test
+RUN npm test && npm run build:sea
 
-# Copy package.json and package-lock.json (if available)
-COPY package*.json ./
+# Node 24 is the current supported LTS used for all container releases.
+FROM node:24-alpine
 
-# Install dependencies
-RUN npm install
+WORKDIR /app
+ENV NODE_ENV=production
 
-# Copy the rest of the application code
-COPY . .
+COPY package.json package-lock.json ./
 
-# Expose the port the app runs on
+RUN npm ci --omit=dev
+
+COPY --chown=node:node server.js ./
+
 EXPOSE 3000
+USER node
 
-# Command to run the application
 CMD ["node", "server.js"]

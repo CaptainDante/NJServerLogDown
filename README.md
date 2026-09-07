@@ -1,129 +1,133 @@
-# NJServerLogDown: one-click download of the WebIQ `connect.log`
+# NJServerLogDown: secure WebIQ `connect.log` download
 
-<!-- Demo GIF: record ~10 seconds (browser hits /download-log, connect.zip lands in Downloads) and add it here -->
+NJServerLogDown streams the WebIQ `connect.log` as `connect.zip` for support
+work. It is deliberately small, but it serves diagnostic data that can contain
+hostnames, IP addresses, and tag names. The download endpoint is therefore
+**authenticated, origin-restricted, and loopback-only by default**.
 
-![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)
+## Requirements
 
-[WebIQ](https://www.smart-hmi.com) runtimes usually live on headless Linux
-boxes or locked-down industrial PCs. When support asks for the `connect.log`,
-nobody wants to walk an operator through SSH and `scp` on the plant floor.
+- Node.js 24 or newer for source deployments and builds.
+- An API key of at least 32 bytes.
+- The exact browser origins that may call the service, for example
+  `https://hmi.example.local`.
 
-**NJServerLogDown** is a tiny Node.js server that solves this: it zips the
-WebIQ Connect log and serves it as a one-click browser download, or as a
-download button inside your WebIQ application itself.
+## Configure and run from source
 
-## What it does
-
-- Exposes one endpoint: `GET /download-log`
-- Finds the WebIQ `connect.log` automatically:
-  - **Windows:** `%PROGRAMDATA%\WebIQ\connect.log`
-  - **Linux:** `/var/lib/webiq/connect.log`
-- Zips it (max compression) and streams it back as `connect.zip`
-- Returns `404` with a clear message if the log file isn't there
-- Ships as a standalone executable: no Node.js needed on the target machine
-
-## Quick start
-
-### Option A: download the executable (recommended)
-
-1. Grab the file for your platform from the **[Releases page](https://github.com/DanteDevOps/NJServerLogDown/releases)**.
-2. Run it:
-
-   ```bash
-   # Linux
-   chmod +x njserverlogdown-linux
-   ./njserverlogdown-linux
-
-   # Windows
-   njserverlogdown-win.exe
-   ```
-
-3. The server starts on `http://0.0.0.0:3000`.
-
-### Option B: run from source
+Install the locked dependency tree, then set the required configuration before
+starting the server:
 
 ```bash
-git clone https://github.com/DanteDevOps/NJServerLogDown.git
-cd NJServerLogDown
-npm install
+npm ci
+export NJSERVER_LOG_API_KEY="replace-with-a-32-byte-or-longer-secret"
+export NJSERVER_LOG_ALLOWED_ORIGINS="https://hmi.example.local"
 npm start
 ```
 
-## Usage
+PowerShell equivalent:
 
-From any machine on the same network:
-
+```powershell
+npm ci
+$env:NJSERVER_LOG_API_KEY = "replace-with-a-32-byte-or-longer-secret"
+$env:NJSERVER_LOG_ALLOWED_ORIGINS = "https://hmi.example.local"
+npm start
 ```
-http://<SERVER_IP>:3000/download-log
-```
 
-The browser downloads `connect.zip` containing the current `connect.log`.
+The service fails at startup if either required setting is absent or invalid. Do
+not commit the key or put it in a public WebIQ project.
 
-## Use it inside a WebIQ application
+| Variable | Required | Default | Purpose |
+| --- | --- | --- | --- |
+| `NJSERVER_LOG_API_KEY` | Yes | — | 32-byte-or-longer secret required in the `X-API-Key` request header. |
+| `NJSERVER_LOG_ALLOWED_ORIGINS` | Yes | — | Comma-separated, exact `http://` or `https://` browser origins. Wildcards and URL paths are rejected. |
+| `NJSERVER_LOG_BIND_HOST` | No | `127.0.0.1` | Listener address. Set `0.0.0.0` only when a firewall or reverse proxy restricts source networks. |
+| `NJSERVER_LOG_PORT` | No | `3000` | TCP listener port. |
 
-You can put a "Download log" button directly into your WebIQ HMI:
+Generate a suitable key with `openssl rand -hex 32` or an equivalent secret
+manager. Rotate it if it appears in browser code, logs, screenshots, or source
+control.
 
-1. Log in to the [Smart HMI](https://www.smart-hmi.com) user area and download
-   the free `lib-jquery3` package.
-2. Install the package in your WebIQ application.
-3. Use the script in [`WebIQ_Sample_script`](./WebIQ_Sample_script) as the
-   button's action.
+## Request the log
 
-## Security notes: read before deploying
-
-This tool is built for **trusted engineering and commissioning networks**. By design:
-
-- There is **no authentication**. Anyone who can reach port 3000 can download the log.
-- **CORS is fully open**, so a WebIQ app served from another port can call the endpoint. Restrict the origin in `server.js` if your setup allows it.
-- The server listens on **all network interfaces** (`0.0.0.0`).
-- Log files can contain internal hostnames, IP addresses, and tag names. **Treat the download as sensitive data.**
-
-Do not expose this service to the open internet or route it through a firewall
-port-forward. If the machine runs `ufw`, open only what you need on the local
-network:
+The only data route is `GET /download-log`. It requires the API key:
 
 ```bash
-sudo ufw allow 3000/tcp    # this server
-sudo ufw allow 10123/tcp   # WebIQ Runtime
-sudo ufw allow 10124/tcp   # WebIQ Manager
-sudo ufw enable
+curl --fail --header "X-API-Key: $NJSERVER_LOG_API_KEY" \
+  --output connect.zip http://127.0.0.1:3000/download-log
 ```
 
-## Build your own executable
+Responses include `Cache-Control: no-store`. Browser requests from an origin not
+listed in `NJSERVER_LOG_ALLOWED_ORIGINS` are rejected before the log is read.
 
-The project uses [`pkg`](https://github.com/vercel/pkg) to build standalone binaries:
+## WebIQ integration
+
+Use [`WebIQ_Sample_script`](./WebIQ_Sample_script) as the button action after
+replacing both placeholders. The browser origin that hosts WebIQ must appear in
+`NJSERVER_LOG_ALLOWED_ORIGINS` exactly, including its scheme and port.
+
+The browser receives the API key in this integration. Treat every user who can
+read that WebIQ script as authorized to download the log; protect the WebIQ app
+with its own user roles. For stronger separation, keep the service loopback-only
+and put an authenticated reverse proxy in front of it instead.
+
+## Container deployment
+
+The image uses the supported Node 24 LTS and installs the locked production tree
+with `npm ci`. It runs as the unprivileged `node` user. Mount the log read-only
+and ensure that user can read the mounted file.
 
 ```bash
-npm install -g pkg
-pkg .                              # build for your current platform
-pkg . --targets node18-win-x64     # Windows
-pkg . --targets node18-linux-x64   # Linux
+docker build -t njserverlogdown:local .
+docker run --rm \
+  -p 127.0.0.1:3000:3000 \
+  -e NJSERVER_LOG_BIND_HOST=0.0.0.0 \
+  -e NJSERVER_LOG_API_KEY="replace-with-a-32-byte-or-longer-secret" \
+  -e NJSERVER_LOG_ALLOWED_ORIGINS="https://hmi.example.local" \
+  --mount type=bind,src=/var/lib/webiq/connect.log,dst=/var/lib/webiq/connect.log,readonly \
+  njserverlogdown:local
 ```
 
-> Note: `pkg` is no longer actively maintained. It still works fine for this
-> project; if it ever breaks, Node.js now has a built-in single-executable
-> feature that can replace it.
+Publish the port to a specific trusted interface or a reverse proxy. Do not use a
+public port-forward or expose port 3000 directly to an untrusted network.
+
+## Build a standalone executable
+
+The old `pkg` workflow embedded end-of-life Node 18 and is removed. The
+`build:sea` script now creates a native single executable using Node's supported
+single-executable application (SEA) workflow. Build on each target platform and
+architecture using Node 24; it does not cross-compile.
+
+```bash
+npm ci
+npm run build:sea
+```
+
+The artifact is written to `dist/njserverlogdown-<platform>-<architecture>`.
+Sign Windows and macOS artifacts before distributing them. Rebuild and republish
+executables whenever Node 24 receives a security update.
+
+## Verify changes
+
+```bash
+npm test
+npm audit --package-lock-only
+```
+
+The tests exercise denied requests, disallowed origins, allowed CORS preflight,
+and an authorized ZIP response. The audit must remain clean before release.
 
 ## Project structure
 
 ```
 NJServerLogDown/
-├── server.js             # the whole server (~45 lines)
-├── WebIQ_Sample_script   # button code for your WebIQ app
-├── package.json
-└── Dockerfile
+├── server.js              # authenticated log-download service
+├── test/server.test.js    # HTTP security and ZIP regression tests
+├── scripts/build-sea.js   # native Node 24 SEA build
+├── WebIQ_Sample_script    # WebIQ button action
+├── Dockerfile
+└── package.json
 ```
-
-## Contributing
-
-Issues and pull requests are welcome, especially reports from other WebIQ
-deployment setups.
 
 ## License
 
 MIT. See [LICENSE](./LICENSE).
-
----
-
-Built by **[Dante Vetony](https://dantevetony.com)**, solution engineer working
-where OT meets AI. More tools and writing on the site.

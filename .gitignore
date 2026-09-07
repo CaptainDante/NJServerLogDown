@@ -1,3 +1,4 @@
 node_modules/
 .idea/
 dist/
+reviews/dependency-security/round-1/FINDINGS.md

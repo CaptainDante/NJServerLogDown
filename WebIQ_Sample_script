@@ -1,5 +1,6 @@
     /*
-     * Don't forget to change the YOUR_WebIQ_SERVER_IP to your WebIQ runtime IP address
+     * Replace YOUR_LOG_SERVER_IP and YOUR_NJSERVER_LOG_API_KEY before use.
+     * The WebIQ page origin must also be in NJSERVER_LOG_ALLOWED_ORIGINS on the log server.
      * First "create entry" in "code manager" (Alt+C), Local-Scripts, and name it whatever you like.
      * Then add code below after the comment " //Place your Code here "
      * Keep in mind that you need to first download and install the lib-jquery3 package with a package manager (Alt+Q)
@@ -17,8 +18,11 @@
                 console.log("Button clicked");
 
                 $.ajax({
-                    url: 'http://YOUR_WebIQ_SERVER_IP:3000/download-log', // Use the IP address of your WebIQ server
+                    url: 'http://YOUR_LOG_SERVER_IP:3000/download-log', // Use the IP address of your log server
                     method: 'GET',
+                    headers: {
+                        'X-API-Key': 'YOUR_NJSERVER_LOG_API_KEY'
+                    },
                     xhrFields: {
                         responseType: 'blob'
                     },
